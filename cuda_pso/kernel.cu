@@ -1,4 +1,11 @@
 #include "kernel.cuh"
+const int loopNum = 200;
+
+//return random num between low and high
+float getRandom(float low, float high)
+{
+	return low + float(((high - low) + 1)*rand() / (RAND_MAX + 1.0));
+}
 
 int main(int argc, char** argv)
 {
@@ -28,9 +35,11 @@ int main(int argc, char** argv)
 
 	//gBest
 	float gBest[NUM_OF_DIMENSIONS];
-	double ave_time = 0;
+	double timePerCount = 0;
+	double timeAll = 0;
 	srand((unsigned)time(NULL));
-	for (int count=0;count<20;count++)
+
+	for (int count=0;count<loopNum;count++)
 	{
 		//Initialize particles
 		for (int i = 0; i < NUM_OF_PARTICLES*NUM_OF_DIMENSIONS; i++)
@@ -51,10 +60,11 @@ int main(int argc, char** argv)
 		cuda_pso(position, velocities, pBests, gBest);
 
 		clock_t end = clock();
-
+		timePerCount = (double)(end - begin) / CLOCKS_PER_SEC * 1000;
+		timeAll = timeAll + timePerCount;
 		printf("==================== GPU%d =======================\n",count+1);
 
-		printf("Time consumption: %10.3lf ms\n", (double)(end - begin) / CLOCKS_PER_SEC * 1000);
+		printf("Time consumption: %10.3lf ms\n", timePerCount);
 
 		// gBest minimum
 		//for (int i = 0; i < NUM_OF_DIMENSIONS; i++)
@@ -64,10 +74,7 @@ int main(int argc, char** argv)
 
 		// ======================== END OF GPU ====================== //
 	}
-		
-	
-	
-
+	printf("Ave Time consumption: %10.3lf ms\n", timeAll/loopNum);
 	system("PAUSE");
 	return 0;
 }

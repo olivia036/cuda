@@ -1,4 +1,7 @@
 #include "kernel.cuh"
+#include <crt\device_functions.h>
+
+
 
 __device__ float fitness_function(float x[])
 {
@@ -21,20 +24,23 @@ __device__ float fitness_function(float x[])
 }
 
 
-__global__ void kernelUpdateParticle(float *position, float *velocities, float *pBests, float *gBests, float r1, float r2)
+__global__ void kernelUpdateParticle(float *position, float *velocities, float *pBests, float *gBests, curandState* globalState1, curandState* globalState2)
 {
 	int i = blockIdx.x*blockDim.x + threadIdx.x;
 
 	if (i >= NUM_OF_PARTICLES*NUM_OF_DIMENSIONS)
 		return;
 
-	//float rp = getRandomClamped();
-	//float rg = getRandomClamped();
-
-	float rp = r1;
-	float rg = r2;
-
-	velocities[i] = OMEGA*velocities[i] + c1*rp*(pBests[i] - position[i]) + c2*rg*(gBests[i] - position[i]);
+	curandState localState1 = globalState1[i];
+	curandState localState2 = globalState2[i];
+	//float rp = r1;
+	//float rg = r2;
+	float r1 = curand_uniform(&localState1);
+	float r2 = curand_uniform(&localState1);
+	globalState1[i] = localState1;
+	globalState2[i] = localState2;
+	//__syncthreads();
+	velocities[i] = OMEGA*velocities[i] + c1*r1*(pBests[i] - position[i]) + c2*r2*(gBests[i] - position[i]);
 
 	//Update position of particle
 	position[i] += velocities[i];
@@ -61,22 +67,21 @@ __global__ void kernelUpdatePBest(float *positions, float *pBests, float *gBest)
 		}
 	}
 }
-//
-//return random num between low and high
-float getRandom(float low, float high)
+
+
+__global__ void setup_kernel(curandState * state, unsigned long seed)
 {
-	return low + float(((high - low) + 1)*rand() / (RAND_MAX + 1.0));
+	int id = blockIdx.x*blockDim.x + threadIdx.x;
+	curand_init(seed, id, 0, &state[id]);
 }
 
-//return random num between 0.0f and 1.0f
-float getRandomClamped()
-{
-	return (float)rand() / (float)RAND_MAX;
-}
 
 void cuda_pso(float *positions, float *velocities, float *pBests, float *gBest)
 {
 	int size = NUM_OF_PARTICLES*NUM_OF_DIMENSIONS;
+	//int size_random = NUM_OF_PARTICLES*NUM_OF_DIMENSIONS * 2;
+	curandState* devStates1;
+	curandState* devStates2;
 
 	float *devPos;
 	float *devVel;
@@ -90,6 +95,10 @@ void cuda_pso(float *positions, float *velocities, float *pBests, float *gBest)
 	cudaMalloc((void**)&devVel, sizeof(float)*size);
 	cudaMalloc((void**)&devPBest, sizeof(float)*size);
 	cudaMalloc((void**)&devGBest, sizeof(float)*size);
+	
+	cudaMalloc(&devStates1, size * sizeof(curandState));
+	cudaMalloc(&devStates2, size * sizeof(curandState));
+
 
 	//Thread & Block number
 	int threadsNum = 256;
@@ -101,12 +110,20 @@ void cuda_pso(float *positions, float *velocities, float *pBests, float *gBest)
 	cudaMemcpy(devPBest, positions, sizeof(float)*size, cudaMemcpyHostToDevice);
 	cudaMemcpy(devGBest, positions, sizeof(float)*size, cudaMemcpyHostToDevice);
 
+	
+
 	//PSO main function
 	for (int iter = 0; iter < MAX_ITER; iter++)
 	{
+		
+		//initialize the random num
+		setup_kernel <<< blocksNum, threadsNum >>> (devStates1, time(NULL));
+		setup_kernel << < blocksNum, threadsNum >> > (devStates2, time(NULL));
+
 		//clock_t countBegin = clock();
 		//Update position and velocity
-		kernelUpdateParticle << <blocksNum, threadsNum >> > (devPos, devVel, devPBest, devGBest, getRandomClamped(), getRandomClamped());
+
+		kernelUpdateParticle << <blocksNum, threadsNum >> > (devPos, devVel, devPBest, devGBest, devStates1, devStates2);
 
 		//Update pBest
 		kernelUpdatePBest << <blocksNum, threadsNum >> > (devPos, devPBest, devGBest);
@@ -147,6 +164,8 @@ void cuda_pso(float *positions, float *velocities, float *pBests, float *gBest)
 	cudaFree(devVel);
 	cudaFree(devPBest);
 	cudaFree(devGBest);
+	cudaFree(devStates1);
+	cudaFree(devStates2);
 
 }
 
