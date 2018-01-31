@@ -62,9 +62,9 @@ int main(int argc, char** argv)
 		clock_t end = clock();
 		timePerCount = (double)(end - begin) / CLOCKS_PER_SEC * 1000;
 		timeAll = timeAll + timePerCount;
-		printf("==================== GPU%d =======================\n",count+1);
+		//printf("==================== GPU%d =======================\n",count+1);
 
-		printf("Time consumption: %10.3lf ms\n", timePerCount);
+		//printf("Time consumption: %10.3lf ms\n", timePerCount);
 
 		// gBest minimum
 		//for (int i = 0; i < NUM_OF_DIMENSIONS; i++)
@@ -74,7 +74,7 @@ int main(int argc, char** argv)
 
 		// ======================== END OF GPU ====================== //
 	}
-	printf("Ave Time consumption: %10.3lf ms\n", timeAll/loopNum);
+	printf("Ave Time of %d loops consumption: %10.3lf ms\n", loopNum,timeAll/loopNum);
 	system("PAUSE");
 	return 0;
 }

@@ -12,7 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="addWithCuda.cu" />
-    <CudaCompile Include="cuda_pso.cu" />
+    <CudaCompile Include="cuda_stream2.cu" />
     <CudaCompile Include="host_fitness_function.cu" />
     <CudaCompile Include="kernel.cu" />
   </ItemGroup>

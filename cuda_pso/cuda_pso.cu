@@ -2,7 +2,6 @@
 #include <crt\device_functions.h>
 
 
-
 __device__ float fitness_function(float x[])
 {
 	float res = 0;
@@ -22,6 +21,7 @@ __device__ float fitness_function(float x[])
 
 	return res;
 }
+
 
 
 __global__ void kernelUpdateParticle(float *position, float *velocities, float *pBests, float *gBests, curandState* globalState1, curandState* globalState2)
@@ -95,7 +95,7 @@ void cuda_pso(float *positions, float *velocities, float *pBests, float *gBest)
 	cudaMalloc((void**)&devVel, sizeof(float)*size);
 	cudaMalloc((void**)&devPBest, sizeof(float)*size);
 	cudaMalloc((void**)&devGBest, sizeof(float)*size);
-	
+
 	cudaMalloc(&devStates1, size * sizeof(curandState));
 	cudaMalloc(&devStates2, size * sizeof(curandState));
 
@@ -110,14 +110,14 @@ void cuda_pso(float *positions, float *velocities, float *pBests, float *gBest)
 	cudaMemcpy(devPBest, positions, sizeof(float)*size, cudaMemcpyHostToDevice);
 	cudaMemcpy(devGBest, positions, sizeof(float)*size, cudaMemcpyHostToDevice);
 
-	
+
 
 	//PSO main function
 	for (int iter = 0; iter < MAX_ITER; iter++)
 	{
-		
+
 		//initialize the random num
-		setup_kernel <<< blocksNum, threadsNum >>> (devStates1, time(NULL));
+		setup_kernel << < blocksNum, threadsNum >> > (devStates1, time(NULL));
 		setup_kernel << < blocksNum, threadsNum >> > (devStates2, time(NULL));
 
 		//clock_t countBegin = clock();
